@@ -75,6 +75,11 @@ async function fetchFromGemini(userInput) {
 }
 
 async function getResponse(userInput) {
+    // Check for "hi" and respond accordingly
+    if (userInput.toLowerCase().trim() === 'hi') {
+        return 'Hi there, how can I assist you today?';
+    }
+
     let response = await getResponseFromDB(userInput);
     if (!response) {
         response = await fetchFromGemini(userInput);
@@ -82,6 +87,7 @@ async function getResponse(userInput) {
     }
     return response;
 }
+
 
 function addMessage(message, isUser = true) {
     const chatBox = document.getElementById('chat-box');
