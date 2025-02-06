@@ -15,6 +15,7 @@ const API_KEY = 'AIzaSyBFQV0r_yee2GXUeeEOxpLPcFUOoGRK4n0';
 const API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent';
 
 function extractKeywords(text) {
+    text = text.toLowerCase(); // Convert text to lowercase
     return [...new Set([...text.matchAll(/\b\w+\b/g)].map(match => match[0]))].filter(word => word.length > 2);
 }
 
@@ -24,7 +25,7 @@ async function insertResponse(userInput, botResponse) {
         const batch = db.batch();
         
         keywords.forEach(keyword => {
-            const docRef = db.collection(keyword).doc(userInput);
+            const docRef = db.collection(keyword).doc(userInput.toLowerCase());
             batch.set(docRef, {
                 user_input: userInput,
                 bot_response: botResponse
@@ -41,7 +42,7 @@ async function getResponseFromDB(userInput) {
     try {
         const keywords = extractKeywords(userInput);
         for (const keyword of keywords) {
-            const doc = await db.collection(keyword).doc(userInput).get();
+            const doc = await db.collection(keyword).doc(userInput.toLowerCase()).get();
             if (doc.exists) return doc.data().bot_response;
         }
         return null;
@@ -65,7 +66,6 @@ async function fetchFromGemini(userInput) {
             })
         });
         
-
         const data = await response.json();
         return data.candidates[0].content.parts[0].text;
     } catch (error) {
