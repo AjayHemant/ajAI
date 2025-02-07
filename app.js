@@ -40,12 +40,21 @@ async function insertResponse(userInput, botResponse) {
 
 async function getResponseFromDB(userInput) {
     try {
-        const keywords = extractKeywords(userInput);
+        const keywords = extractKeywords(userInput); // Extract all words from the input
         for (const keyword of keywords) {
-            const doc = await db.collection(keyword).doc(userInput.toLowerCase()).get();
-            if (doc.exists) return doc.data().bot_response;
+            // Check if the keyword exists in the database
+            const querySnapshot = await db.collection(keyword).get();
+            if (!querySnapshot.empty) {
+                // Iterate through all documents in the collection
+                for (const doc of querySnapshot.docs) {
+                    // Check if the user input contains the document ID (keyword)
+                    if (userInput.toLowerCase().includes(doc.id.toLowerCase())) {
+                        return doc.data().bot_response; // Return the response if a match is found
+                    }
+                }
+            }
         }
-        return null;
+        return null; // Return null if no match is found
     } catch (error) {
         console.error('Retrieval error:', error);
         return null;
