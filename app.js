@@ -69,7 +69,7 @@ async function fetchFromGemini(userInput) {
             body: JSON.stringify({
                 contents: [{
                     parts: [{
-                        text: "Provide a concise, ethical cybersecurity response to the following: ${userInput}. If the inquiry involves unethical practices, briefly explain the correct, ethical approach in two lines. For general questions, provide a standard, informative response."
+                        text: `${userInput} give ethical response within 2 lines`
                     }]
                 }]
             })
