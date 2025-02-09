@@ -31,7 +31,11 @@ function levenshteinDistance(a, b) {
 }
 
 function correctTypos(text) {
-    const dictionary = ["hi", "hello", "help", "bot", "chat", "query", "response", "database", "gemini", "api"];
+    const dictionary = ["hi", "hello", "help", "bot", "chat", "query", "response", "database", "gemini", "api",
+        "recon", "responses", "reverse", "rkhunter", "rootkit", "sandboxing", "scraping", "security", "session", "setoolkit", 
+        "snort", "soc", "social", "socialscan", "spoofing", "spyware", "sql", "sqlmap", "steganography", "strings", 
+        "sublist3r", "tcpdump", "tell", "testing", "theharvester", "there", "threat", "trojan", "trust", "two", "uses", 
+        "volatility", "vpn", "web", "what", "wifi", "wireshark", "worm", "wpscan", "xss", "yara", "you", "your", "zap", "zero"];
     return text.split(" ").map(word => {
         let closestMatch = dictionary.reduce((a, b) => 
             levenshteinDistance(word, a) < levenshteinDistance(word, b) ? a : b
