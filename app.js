@@ -1,4 +1,4 @@
-// Firebase Configuration
+// Firebase configuration
 const firebaseConfig = {
     apiKey: "AIzaSyCIJGsw2Ge_kKBZJ1hbTsBNDn6mD2AyhPI",
     authDomain: "ajai-3cc8a.firebaseapp.com",
@@ -41,9 +41,9 @@ function levenshteinDistance(a, b) {
     return matrix[a.length][b.length];
 }
 
-// Function to find the closest match for a word (typo correction only)
+// Function to find the closest match for a word (typo correction)
 function correctTypos(word) {
-    let closestMatch = word;
+    let closestMatch = null;
     let smallestDistance = Infinity;
 
     validKeywords.forEach(keyword => {
@@ -54,20 +54,20 @@ function correctTypos(word) {
         }
     });
 
-    return closestMatch;
+    return closestMatch || word; // If no match is found, return the original word
 }
 
-// Extract keywords and correct typos
+// Function to extract keywords and handle typos
 function extractKeywords(text) {
     text = text.toLowerCase(); // Convert text to lowercase
-    const words = [...new Set([...text.matchAll(/\b\w+\b/g)].map(match => match[0]))];
-    const mappedKeywords = words.map(correctTypos).filter(word => word.length > 2); // Fix typos and filter
+    const words = [...new Set([...text.matchAll(/\b\w+\b/g)].map(match => match[0]))]; // Split text into unique words
+    const correctedKeywords = words.map(correctTypos).filter(word => validKeywords.includes(word)); // Correct typos and filter
 
-    console.log("Mapped Keywords:", mappedKeywords); // Debugging
-    return mappedKeywords;
+    console.log("Corrected Keywords:", correctedKeywords); // Debugging
+    return correctedKeywords;
 }
 
-// Insert response into Firebase Firestore
+// Function to insert a response into the database
 async function insertResponse(userInput, botResponse) {
     try {
         const keywords = extractKeywords(userInput);
@@ -82,17 +82,15 @@ async function insertResponse(userInput, botResponse) {
         });
 
         await batch.commit();
-        console.log("Response inserted successfully!");
     } catch (error) {
-        console.error("Insert error:", error);
+        console.error('Insert error:', error);
     }
 }
 
-// Retrieve response from Firebase Firestore
+// Function to get a response from the database
 async function getResponseFromDB(userInput) {
     try {
-        const keywords = extractKeywords(userInput);
-
+        const keywords = extractKeywords(userInput); // Extract all words from the input
         for (const keyword of keywords) {
             const querySnapshot = await db.collection(keyword).get();
             if (!querySnapshot.empty) {
@@ -103,23 +101,19 @@ async function getResponseFromDB(userInput) {
                 }
             }
         }
-
-        return null; // No match found
+        return null; // Return null if no match is found
     } catch (error) {
-        console.error("Retrieval error:", error);
+        console.error('Retrieval error:', error);
         return null;
     }
 }
 
-// Fetch a fallback response using Gemini API (Optional)
-const API_KEY = "AIzaSyBFQV0r_yee2GXUeeEOxpLPcFUOoGRK4n0";
-const API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent";
-
+// Function to fetch a response using the Gemini API
 async function fetchFromGemini(userInput) {
     try {
         const response = await fetch(`${API_URL}?key=${API_KEY}`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 contents: [{
                     parts: [{
@@ -132,56 +126,52 @@ async function fetchFromGemini(userInput) {
         const data = await response.json();
         return data.candidates[0].content.parts[0].text;
     } catch (error) {
-        console.error("Gemini API error:", error);
-        return "Sorry, I encountered an error. Please try again.";
+        console.error('Gemini API error:', error);
+        return 'Sorry, I encountered an error. Please try again.';
     }
 }
 
 // Main function to get a response
 async function getResponse(userInput) {
-    // Check for simple greetings
-    if (userInput.toLowerCase().trim() === "hi") {
-        return "Hi there, how can I assist you today?";
+    if (userInput.toLowerCase().trim() === 'hi') {
+        return 'Hi there, how can I assist you today?';
     }
 
-    // Check database
     let response = await getResponseFromDB(userInput);
     if (!response) {
-        // Fallback to Gemini API if no response in DB
         response = await fetchFromGemini(userInput);
-        await insertResponse(userInput, response); // Store response in DB for future
+        await insertResponse(userInput, response);
     }
     return response;
 }
 
-// Add messages to the chat interface
+// Function to add a message to the chatbox
 function addMessage(message, isUser = true) {
-    const chatBox = document.getElementById("chat-box");
-    const messageDiv = document.createElement("div");
-    messageDiv.className = `message ${isUser ? "user-message" : "bot-message"}`;
+    const chatBox = document.getElementById('chat-box');
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `message ${isUser ? 'user-message' : 'bot-message'}`;
     messageDiv.innerHTML = isUser ? `&gt; ${message}` : message;
     chatBox.appendChild(messageDiv);
     chatBox.scrollTop = chatBox.scrollHeight;
 }
 
-// Handle sending messages
+// Function to handle sending a message
 async function sendMessage() {
-    const userInput = document.getElementById("user-input");
+    const userInput = document.getElementById('user-input');
     const text = userInput.value.trim();
 
     if (text) {
         addMessage(text, true);
-        userInput.value = "";
+        userInput.value = '';
         const response = await getResponse(text);
         addMessage(response, false);
     }
 }
 
-// Event listeners for both Enter key and Send button
-document.getElementById("user-input").addEventListener("keypress", (e) => {
-    if (e.key === "Enter") sendMessage();
-});
+// Event listener for the send button
+document.getElementById('send-button').addEventListener('click', sendMessage);
 
-document.getElementById("send-button").addEventListener("click", () => {
-    sendMessage();
+// Event listener for Enter key press
+document.getElementById('user-input').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') sendMessage();
 });
