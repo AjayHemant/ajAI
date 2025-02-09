@@ -1,9 +1,8 @@
-// Firebase Configuration
 const firebaseConfig = {
     apiKey: "AIzaSyCIJGsw2Ge_kKBZJ1hbTsBNDn6mD2AyhPI",
     authDomain: "ajai-3cc8a.firebaseapp.com",
     projectId: "ajai-3cc8a",
-    storageBucket: "ajai-3cc8a.appspot.com",
+    storageBucket: "ajai-3cc8a.firebasestorage.app",
     messagingSenderId: "1019114189855",
     appId: "1:1019114189855:web:bf282b01ceebdfda63d12a"
 };
@@ -12,72 +11,19 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
-// Gemini API Configuration
 const API_KEY = 'AIzaSyBFQV0r_yee2GXUeeEOxpLPcFUOoGRK4n0';
 const API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent';
 
-// Predefined Cybersecurity Keywords (lowercase)
-const CYBERSEC_KEYWORDS = new Set([
-    "hi", "hello", "help", "bot", "chat", "query", "response", "database", "gemini", "api",
-    "recon", "responses", "reverse", "rkhunter", "rootkit", "sandboxing", "scraping", "security", 
-    "session", "setoolkit", "snort", "soc", "social", "socialscan", "spoofing", "spyware", "sql", 
-    "sqlmap", "steganography", "strings", "sublist3r", "tcpdump", "tell", "testing", "theharvester", 
-    "there", "threat", "trojan", "trust", "two", "uses", "volatility", "vpn", "web", "what", "wifi", 
-    "wireshark", "worm", "wpscan", "xss", "yara", "you", "your", "zap", "zero"
-].map(k => k.toLowerCase()));
-
-// Levenshtein Distance Algorithm
-function levenshteinDistance(a, b) {
-    const matrix = Array(b.length + 1).fill(null).map(() => 
-                     Array(a.length + 1).fill(null));
-    
-    for (let i = 0; i <= a.length; i++) matrix[0][i] = i;
-    for (let j = 0; j <= b.length; j++) matrix[j][0] = j;
-
-    for (let j = 1; j <= b.length; j++) {
-        for (let i = 1; i <= a.length; i++) {
-            const cost = a[i-1] === b[j-1] ? 0 : 1;
-            matrix[j][i] = Math.min(
-                matrix[j][i-1] + 1,
-                matrix[j-1][i] + 1,
-                matrix[j-1][i-1] + cost
-            );
-        }
-    }
-    return matrix[b.length][a.length];
-}
-
-// Find Closest Keyword from Cybersecurity List
-function findClosestSecurityKeyword(input) {
-    const inputLower = input.toLowerCase();
-    let closest = { word: input, distance: Infinity };
-    
-    CYBERSEC_KEYWORDS.forEach(keyword => {
-        const distance = levenshteinDistance(inputLower, keyword);
-        if (distance < closest.distance && distance <= 2) {
-            closest = { word: keyword, distance };
-        }
-    });
-    
-    return closest.word;
-}
-
-// Extract Keywords with Typo Correction
 function extractKeywords(text) {
-    const words = [...text.toLowerCase().matchAll(/\b\w{3,}\b/g)].map(m => m[0]);
-    const processed = words.map(word => {
-        return CYBERSEC_KEYWORDS.has(word) ? word : findClosestSecurityKeyword(word);
-    });
-    
-    return [...new Set(processed)];
+    text = text.toLowerCase(); // Convert text to lowercase
+    return [...new Set([...text.matchAll(/\b\w+\b/g)].map(match => match[0]))].filter(word => word.length > 2);
 }
 
-// Insert User Input and Bot Response into Firestore
 async function insertResponse(userInput, botResponse) {
     try {
         const keywords = extractKeywords(userInput);
         const batch = db.batch();
-
+        
         keywords.forEach(keyword => {
             const docRef = db.collection(keyword).doc(userInput.toLowerCase());
             batch.set(docRef, {
@@ -85,37 +31,36 @@ async function insertResponse(userInput, botResponse) {
                 bot_response: botResponse
             });
         });
-
+        
         await batch.commit();
     } catch (error) {
         console.error('Insert error:', error);
     }
 }
 
-// Retrieve Response from Firestore
 async function getResponseFromDB(userInput) {
     try {
-        const keywords = extractKeywords(userInput);
-        
+        const keywords = extractKeywords(userInput); // Extract all words from the input
         for (const keyword of keywords) {
-            const corrected = findClosestSecurityKeyword(keyword);
-            const snapshot = await db.collection(corrected)
-                .where('user_input', '==', userInput.toLowerCase())
-                .limit(1)
-                .get();
-
-            if (!snapshot.empty) {
-                return snapshot.docs[0].data().bot_response;
+            // Check if the keyword exists in the database
+            const querySnapshot = await db.collection(keyword).get();
+            if (!querySnapshot.empty) {
+                // Iterate through all documents in the collection
+                for (const doc of querySnapshot.docs) {
+                    // Check if the user input contains the document ID (keyword)
+                    if (userInput.toLowerCase().includes(doc.id.toLowerCase())) {
+                        return doc.data().bot_response; // Return the response if a match is found
+                    }
+                }
             }
         }
-        return null;
+        return null; // Return null if no match is found
     } catch (error) {
-        console.error('Database error:', error);
+        console.error('Retrieval error:', error);
         return null;
     }
 }
 
-// Fetch Response from Gemini API
 async function fetchFromGemini(userInput) {
     try {
         const response = await fetch(`${API_URL}?key=${API_KEY}`, {
@@ -129,7 +74,7 @@ async function fetchFromGemini(userInput) {
                 }]
             })
         });
-
+        
         const data = await response.json();
         return data.candidates[0].content.parts[0].text;
     } catch (error) {
@@ -138,7 +83,6 @@ async function fetchFromGemini(userInput) {
     }
 }
 
-// Get Response (Combines DB and Gemini)
 async function getResponse(userInput) {
     // Check for "hi" and respond accordingly
     if (userInput.toLowerCase().trim() === 'hi') {
@@ -153,7 +97,7 @@ async function getResponse(userInput) {
     return response;
 }
 
-// Add Message to Chat UI
+
 function addMessage(message, isUser = true) {
     const chatBox = document.getElementById('chat-box');
     const messageDiv = document.createElement('div');
@@ -163,7 +107,6 @@ function addMessage(message, isUser = true) {
     chatBox.scrollTop = chatBox.scrollHeight;
 }
 
-// Send Message Handler
 async function sendMessage() {
     const userInput = document.getElementById('user-input');
     const text = userInput.value.trim();
@@ -176,7 +119,6 @@ async function sendMessage() {
     }
 }
 
-// Event Listener for Enter Key
 document.getElementById('user-input').addEventListener('keypress', (e) => {
     if (e.key === 'Enter') sendMessage();
 });
