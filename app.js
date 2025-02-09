@@ -63,13 +63,13 @@ async function getResponseFromDB(userInput) {
 
 async function fetchFromGemini(userInput) {
     try {
-        const response = await fetch(${API_URL}?key=${API_KEY}, {
+        const response = await fetch(`${API_URL}?key=${API_KEY}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 contents: [{
                     parts: [{
-                        text: ${userInput} give ethical response within 2 lines
+                        text: `${userInput} give ethical response within 2 lines`
                     }]
                 }]
             })
@@ -101,8 +101,8 @@ async function getResponse(userInput) {
 function addMessage(message, isUser = true) {
     const chatBox = document.getElementById('chat-box');
     const messageDiv = document.createElement('div');
-    messageDiv.className = message ${isUser ? 'user-message' : 'bot-message'};
-    messageDiv.innerHTML = isUser ? &gt; ${message} : message;
+    messageDiv.className = `message ${isUser ? 'user-message' : 'bot-message'}`;
+    messageDiv.innerHTML = isUser ? `&gt; ${message}` : message;
     chatBox.appendChild(messageDiv);
     chatBox.scrollTop = chatBox.scrollHeight;
 }
@@ -122,13 +122,3 @@ async function sendMessage() {
 document.getElementById('user-input').addEventListener('keypress', (e) => {
     if (e.key === 'Enter') sendMessage();
 });
-
-database details
-// Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
-import { getAnalytics } from "firebase/analytics";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
-
-// Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
