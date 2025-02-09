@@ -36,11 +36,14 @@ function correctTypos(text) {
         "snort", "soc", "social", "socialscan", "spoofing", "spyware", "sql", "sqlmap", "steganography", "strings", 
         "sublist3r", "tcpdump", "tell", "testing", "theharvester", "there", "threat", "trojan", "trust", "two", "uses", 
         "volatility", "vpn", "web", "what", "wifi", "wireshark", "worm", "wpscan", "xss", "yara", "you", "your", "zap", "zero"];
+    
     return text.split(" ").map(word => {
         let closestMatch = dictionary.reduce((a, b) => 
             levenshteinDistance(word, a) < levenshteinDistance(word, b) ? a : b
         );
-        return levenshteinDistance(word, closestMatch) <= 2 ? closestMatch : word;
+        
+        let distance = levenshteinDistance(word, closestMatch);
+        return distance <= Math.max(2, word.length * 0.3) ? closestMatch : word;
     }).join(" ");
 }
 
