@@ -101,7 +101,7 @@ async function fetchFromGemini(userInput) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 contents: [{
-                    parts: [{ text: `${userInput} give ethical response within 2 lines` }]
+                    parts: [{ text: `${userInput} give respose as less as possible` }]
                 }]
             })
         });
