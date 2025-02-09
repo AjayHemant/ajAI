@@ -177,6 +177,11 @@ async function sendMessage() {
     }
 }
 
+// Event listeners for both Enter key and Send button
 document.getElementById("user-input").addEventListener("keypress", (e) => {
     if (e.key === "Enter") sendMessage();
+});
+
+document.getElementById("send-button").addEventListener("click", () => {
+    sendMessage();
 });
