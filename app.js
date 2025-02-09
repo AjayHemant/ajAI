@@ -2,7 +2,7 @@ const firebaseConfig = {
     apiKey: "AIzaSyCIJGsw2Ge_kKBZJ1hbTsBNDn6mD2AyhPI",
     authDomain: "ajai-3cc8a.firebaseapp.com",
     projectId: "ajai-3cc8a",
-    storageBucket: "ajai-3cc8a.firebasestorage.app",
+    storageBucket: "ajai-3cc8a.appspot.com",
     messagingSenderId: "1019114189855",
     appId: "1:1019114189855:web:bf282b01ceebdfda63d12a"
 };
@@ -14,6 +14,51 @@ const db = firebase.firestore();
 const API_KEY = 'AIzaSyBFQV0r_yee2GXUeeEOxpLPcFUOoGRK4n0';
 const API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent';
 
+// Levenshtein Distance Algorithm for typo fixing
+function levenshteinDistance(a, b) {
+    if (a.length === 0) return b.length;
+    if (b.length === 0) return a.length;
+
+    const matrix = [];
+    for (let i = 0; i <= b.length; i++) {
+        matrix[i] = [i];
+    }
+    for (let j = 0; j <= a.length; j++) {
+        matrix[0][j] = j;
+    }
+
+    for (let i = 1; i <= b.length; i++) {
+        for (let j = 1; j <= a.length; j++) {
+            if (b.charAt(i - 1) === a.charAt(j - 1)) {
+                matrix[i][j] = matrix[i - 1][j - 1];
+            } else {
+                matrix[i][j] = Math.min(
+                    matrix[i - 1][j - 1] + 1, // substitution
+                    matrix[i][j - 1] + 1, // insertion
+                    matrix[i - 1][j] + 1 // deletion
+                );
+            }
+        }
+    }
+
+    return matrix[b.length][a.length];
+}
+
+function findClosestKeyword(keyword, keywords) {
+    let closestKeyword = keyword;
+    let minDistance = Infinity;
+
+    keywords.forEach((k) => {
+        const distance = levenshteinDistance(keyword, k);
+        if (distance < minDistance && distance <= 2) { // Allow up to 2 edits
+            minDistance = distance;
+            closestKeyword = k;
+        }
+    });
+
+    return closestKeyword;
+}
+
 function extractKeywords(text) {
     text = text.toLowerCase(); // Convert text to lowercase
     return [...new Set([...text.matchAll(/\b\w+\b/g)].map(match => match[0]))].filter(word => word.length > 2);
@@ -23,7 +68,7 @@ async function insertResponse(userInput, botResponse) {
     try {
         const keywords = extractKeywords(userInput);
         const batch = db.batch();
-        
+
         keywords.forEach(keyword => {
             const docRef = db.collection(keyword).doc(userInput.toLowerCase());
             batch.set(docRef, {
@@ -31,7 +76,7 @@ async function insertResponse(userInput, botResponse) {
                 bot_response: botResponse
             });
         });
-        
+
         await batch.commit();
     } catch (error) {
         console.error('Insert error:', error);
@@ -74,7 +119,7 @@ async function fetchFromGemini(userInput) {
                 }]
             })
         });
-        
+
         const data = await response.json();
         return data.candidates[0].content.parts[0].text;
     } catch (error) {
@@ -96,7 +141,6 @@ async function getResponse(userInput) {
     }
     return response;
 }
-
 
 function addMessage(message, isUser = true) {
     const chatBox = document.getElementById('chat-box');
