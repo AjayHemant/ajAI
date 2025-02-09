@@ -52,32 +52,18 @@ function extractKeywords(text) {
     return [...new Set([...text.matchAll(/\b\w+\b/g)].map(match => match[0]))].filter(word => word.length > 2);
 }
 
-function getQuestionType(userInput) {
-    const lowerInput = userInput.toLowerCase().trim();
-    const questionTypes = ['what', 'how', 'why', 'when', 'where'];
-    for (const type of questionTypes) {
-        if (lowerInput.startsWith(type + ' ')) {
-            return type;
-        }
-    }
-    return 'general';
-}
-
 async function insertResponse(userInput, botResponse) {
     try {
         userInput = correctTypos(userInput);
         const keywords = extractKeywords(userInput);
-        const questionType = getQuestionType(userInput);
-        const responseField = `${questionType}_response`;
         const batch = db.batch();
         
         keywords.forEach(keyword => {
             const docRef = db.collection(keyword).doc(userInput.toLowerCase());
-            const data = {
+            batch.set(docRef, {
                 user_input: userInput,
-                [responseField]: botResponse
-            };
-            batch.set(docRef, data, { merge: true });
+                bot_response: botResponse
+            });
         });
         
         await batch.commit();
@@ -90,20 +76,12 @@ async function getResponseFromDB(userInput) {
     try {
         userInput = correctTypos(userInput);
         const keywords = extractKeywords(userInput);
-        const questionType = getQuestionType(userInput);
-        const responseField = `${questionType}_response`;
-        
         for (const keyword of keywords) {
             const querySnapshot = await db.collection(keyword).get();
             if (!querySnapshot.empty) {
                 for (const doc of querySnapshot.docs) {
-                    const docId = doc.id.toLowerCase();
-                    const userInputLower = userInput.toLowerCase();
-                    if (userInputLower.includes(docId)) {
-                        const data = doc.data();
-                        if (data[responseField]) {
-                            return data[responseField];
-                        }
+                    if (userInput.toLowerCase().includes(doc.id.toLowerCase())) {
+                        return doc.data().bot_response;
                     }
                 }
             }
