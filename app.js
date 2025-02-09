@@ -1,4 +1,3 @@
-// Firebase configuration
 const firebaseConfig = {
     apiKey: "AIzaSyCIJGsw2Ge_kKBZJ1hbTsBNDn6mD2AyhPI",
     authDomain: "ajai-3cc8a.firebaseapp.com",
@@ -12,67 +11,19 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
-// List of valid keywords
-const validKeywords = [
-    "hi", "hello", "help", "bot", "chat", "query", "response", "database", "gemini", "api",
-    "recon", "responses", "reverse", "rkhunter", "rootkit", "sandboxing", "scraping", "security",
-    "session", "setoolkit", "snort", "soc", "social", "socialscan", "spoofing", "spyware", "sql",
-    "sqlmap", "steganography", "strings", "sublist3r", "tcpdump", "tell", "testing", "theharvester",
-    "there", "threat", "trojan", "trust", "two", "uses", "volatility", "vpn", "web", "what", "wifi",
-    "wireshark", "worm", "wpscan", "xss", "yara", "you", "your", "zap", "zero"
-];
+const API_KEY = 'AIzaSyBFQV0r_yee2GXUeeEOxpLPcFUOoGRK4n0';
+const API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent';
 
-// Function to calculate Levenshtein Distance (for typo correction)
-function levenshteinDistance(a, b) {
-    const matrix = Array(a.length + 1).fill(null).map(() => Array(b.length + 1).fill(null));
-    for (let i = 0; i <= a.length; i++) matrix[i][0] = i;
-    for (let j = 0; j <= b.length; j++) matrix[0][j] = j;
-
-    for (let i = 1; i <= a.length; i++) {
-        for (let j = 1; j <= b.length; j++) {
-            const cost = a[i - 1] === b[j - 1] ? 0 : 1;
-            matrix[i][j] = Math.min(
-                matrix[i - 1][j] + 1,   // Deletion
-                matrix[i][j - 1] + 1,   // Insertion
-                matrix[i - 1][j - 1] + cost // Substitution
-            );
-        }
-    }
-    return matrix[a.length][b.length];
-}
-
-// Function to find the closest match for a word (typo correction)
-function correctTypos(word) {
-    let closestMatch = null;
-    let smallestDistance = Infinity;
-
-    validKeywords.forEach(keyword => {
-        const distance = levenshteinDistance(word, keyword);
-        if (distance < smallestDistance && distance <= 2) { // Allow typo tolerance of 2
-            closestMatch = keyword;
-            smallestDistance = distance;
-        }
-    });
-
-    return closestMatch || word; // If no match is found, return the original word
-}
-
-// Function to extract keywords and handle typos
 function extractKeywords(text) {
     text = text.toLowerCase(); // Convert text to lowercase
-    const words = [...new Set([...text.matchAll(/\b\w+\b/g)].map(match => match[0]))]; // Split text into unique words
-    const correctedKeywords = words.map(correctTypos).filter(word => validKeywords.includes(word)); // Correct typos and filter
-
-    console.log("Corrected Keywords:", correctedKeywords); // Debugging
-    return correctedKeywords;
+    return [...new Set([...text.matchAll(/\b\w+\b/g)].map(match => match[0]))].filter(word => word.length > 2);
 }
 
-// Function to insert a response into the database
 async function insertResponse(userInput, botResponse) {
     try {
         const keywords = extractKeywords(userInput);
         const batch = db.batch();
-
+        
         keywords.forEach(keyword => {
             const docRef = db.collection(keyword).doc(userInput.toLowerCase());
             batch.set(docRef, {
@@ -80,23 +31,25 @@ async function insertResponse(userInput, botResponse) {
                 bot_response: botResponse
             });
         });
-
+        
         await batch.commit();
     } catch (error) {
         console.error('Insert error:', error);
     }
 }
 
-// Function to get a response from the database
 async function getResponseFromDB(userInput) {
     try {
         const keywords = extractKeywords(userInput); // Extract all words from the input
         for (const keyword of keywords) {
+            // Check if the keyword exists in the database
             const querySnapshot = await db.collection(keyword).get();
             if (!querySnapshot.empty) {
+                // Iterate through all documents in the collection
                 for (const doc of querySnapshot.docs) {
+                    // Check if the user input contains the document ID (keyword)
                     if (userInput.toLowerCase().includes(doc.id.toLowerCase())) {
-                        return doc.data().bot_response;
+                        return doc.data().bot_response; // Return the response if a match is found
                     }
                 }
             }
@@ -108,7 +61,6 @@ async function getResponseFromDB(userInput) {
     }
 }
 
-// Function to fetch a response using the Gemini API
 async function fetchFromGemini(userInput) {
     try {
         const response = await fetch(`${API_URL}?key=${API_KEY}`, {
@@ -122,7 +74,7 @@ async function fetchFromGemini(userInput) {
                 }]
             })
         });
-
+        
         const data = await response.json();
         return data.candidates[0].content.parts[0].text;
     } catch (error) {
@@ -131,8 +83,8 @@ async function fetchFromGemini(userInput) {
     }
 }
 
-// Main function to get a response
 async function getResponse(userInput) {
+    // Check for "hi" and respond accordingly
     if (userInput.toLowerCase().trim() === 'hi') {
         return 'Hi there, how can I assist you today?';
     }
@@ -145,7 +97,7 @@ async function getResponse(userInput) {
     return response;
 }
 
-// Function to add a message to the chatbox
+
 function addMessage(message, isUser = true) {
     const chatBox = document.getElementById('chat-box');
     const messageDiv = document.createElement('div');
@@ -155,7 +107,6 @@ function addMessage(message, isUser = true) {
     chatBox.scrollTop = chatBox.scrollHeight;
 }
 
-// Function to handle sending a message
 async function sendMessage() {
     const userInput = document.getElementById('user-input');
     const text = userInput.value.trim();
@@ -168,10 +119,6 @@ async function sendMessage() {
     }
 }
 
-// Event listener for the send button
-document.getElementById('send-button').addEventListener('click', sendMessage);
-
-// Event listener for Enter key press
 document.getElementById('user-input').addEventListener('keypress', (e) => {
     if (e.key === 'Enter') sendMessage();
 });
