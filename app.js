@@ -14,13 +14,40 @@ const db = firebase.firestore();
 const API_KEY = 'AIzaSyBFQV0r_yee2GXUeeEOxpLPcFUOoGRK4n0';
 const API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent';
 
+function levenshteinDistance(a, b) {
+    const dp = Array(a.length + 1).fill(null).map(() => Array(b.length + 1).fill(0));
+    
+    for (let i = 0; i <= a.length; i++) dp[i][0] = i;
+    for (let j = 0; j <= b.length; j++) dp[0][j] = j;
+
+    for (let i = 1; i <= a.length; i++) {
+        for (let j = 1; j <= b.length; j++) {
+            const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+            dp[i][j] = Math.min(dp[i - 1][j] + 1, dp[i][j - 1] + 1, dp[i - 1][j - 1] + cost);
+        }
+    }
+
+    return dp[a.length][b.length];
+}
+
+function correctTypos(text) {
+    const dictionary = ["hi", "hello", "help", "bot", "chat", "query", "response", "database", "gemini", "api"];
+    return text.split(" ").map(word => {
+        let closestMatch = dictionary.reduce((a, b) => 
+            levenshteinDistance(word, a) < levenshteinDistance(word, b) ? a : b
+        );
+        return levenshteinDistance(word, closestMatch) <= 2 ? closestMatch : word;
+    }).join(" ");
+}
+
 function extractKeywords(text) {
-    text = text.toLowerCase(); // Convert text to lowercase
+    text = text.toLowerCase();
     return [...new Set([...text.matchAll(/\b\w+\b/g)].map(match => match[0]))].filter(word => word.length > 2);
 }
 
 async function insertResponse(userInput, botResponse) {
     try {
+        userInput = correctTypos(userInput);
         const keywords = extractKeywords(userInput);
         const batch = db.batch();
         
@@ -40,21 +67,19 @@ async function insertResponse(userInput, botResponse) {
 
 async function getResponseFromDB(userInput) {
     try {
-        const keywords = extractKeywords(userInput); // Extract all words from the input
+        userInput = correctTypos(userInput);
+        const keywords = extractKeywords(userInput);
         for (const keyword of keywords) {
-            // Check if the keyword exists in the database
             const querySnapshot = await db.collection(keyword).get();
             if (!querySnapshot.empty) {
-                // Iterate through all documents in the collection
                 for (const doc of querySnapshot.docs) {
-                    // Check if the user input contains the document ID (keyword)
                     if (userInput.toLowerCase().includes(doc.id.toLowerCase())) {
-                        return doc.data().bot_response; // Return the response if a match is found
+                        return doc.data().bot_response;
                     }
                 }
             }
         }
-        return null; // Return null if no match is found
+        return null;
     } catch (error) {
         console.error('Retrieval error:', error);
         return null;
@@ -63,14 +88,13 @@ async function getResponseFromDB(userInput) {
 
 async function fetchFromGemini(userInput) {
     try {
+        userInput = correctTypos(userInput);
         const response = await fetch(`${API_URL}?key=${API_KEY}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 contents: [{
-                    parts: [{
-                        text: `${userInput} give ethical response within 2 lines`
-                    }]
+                    parts: [{ text: `${userInput} give ethical response within 2 lines` }]
                 }]
             })
         });
@@ -84,7 +108,7 @@ async function fetchFromGemini(userInput) {
 }
 
 async function getResponse(userInput) {
-    // Check for "hi" and respond accordingly
+    userInput = correctTypos(userInput);
     if (userInput.toLowerCase().trim() === 'hi') {
         return 'Hi there, how can I assist you today?';
     }
@@ -96,7 +120,6 @@ async function getResponse(userInput) {
     }
     return response;
 }
-
 
 function addMessage(message, isUser = true) {
     const chatBox = document.getElementById('chat-box');
