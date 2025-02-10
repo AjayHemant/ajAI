@@ -14,8 +14,31 @@ const db = firebase.firestore();
 const API_KEY = 'AIzaSyBFQV0r_yee2GXUeeEOxpLPcFUOoGRK4n0';
 const API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent';
 
+async function checkCyberSecurity(userInput) {
+    try {
+        const response = await fetch(`${API_URL}?key=${API_KEY}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                contents: [{
+                    parts: [{
+                        text: `${userInput} Is this question related to cybersecurity? Answer strictly with 'yes' or 'no' only.`
+                    }]
+                }]
+            })
+        });
+        
+        const data = await response.json();
+        const answer = data.candidates[0].content.parts[0].text.trim().toLowerCase();
+        return answer === 'yes';
+    } catch (error) {
+        console.error('Cybersecurity check error:', error);
+        return false;
+    }
+}
+
 function extractKeywords(text) {
-    text = text.toLowerCase(); // Convert text to lowercase
+    text = text.toLowerCase();
     return [...new Set([...text.matchAll(/\b\w+\b/g)].map(match => match[0]))].filter(word => word.length > 2);
 }
 
@@ -40,21 +63,18 @@ async function insertResponse(userInput, botResponse) {
 
 async function getResponseFromDB(userInput) {
     try {
-        const keywords = extractKeywords(userInput); // Extract all words from the input
+        const keywords = extractKeywords(userInput);
         for (const keyword of keywords) {
-            // Check if the keyword exists in the database
             const querySnapshot = await db.collection(keyword).get();
             if (!querySnapshot.empty) {
-                // Iterate through all documents in the collection
                 for (const doc of querySnapshot.docs) {
-                    // Check if the user input contains the document ID (keyword)
                     if (userInput.toLowerCase().includes(doc.id.toLowerCase())) {
-                        return doc.data().bot_response; // Return the response if a match is found
+                        return doc.data().bot_response;
                     }
                 }
             }
         }
-        return null; // Return null if no match is found
+        return null;
     } catch (error) {
         console.error('Retrieval error:', error);
         return null;
@@ -84,9 +104,14 @@ async function fetchFromGemini(userInput) {
 }
 
 async function getResponse(userInput) {
-    // Check for "hi" and respond accordingly
     if (userInput.toLowerCase().trim() === 'hi') {
         return 'Hi there, how can I assist you today?';
+    }
+
+    // Cybersecurity check
+    const isCyberSecurity = await checkCyberSecurity(userInput);
+    if (!isCyberSecurity) {
+        return 'Please ask questions related to cybersecurity only.';
     }
 
     let response = await getResponseFromDB(userInput);
@@ -97,7 +122,7 @@ async function getResponse(userInput) {
     return response;
 }
 
-
+// Rest of your UI functions remain the same
 function addMessage(message, isUser = true) {
     const chatBox = document.getElementById('chat-box');
     const messageDiv = document.createElement('div');
