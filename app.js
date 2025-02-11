@@ -145,7 +145,7 @@ async function getResponse(userInput) {
     // Check if the input is related to cybersecurity
     const isCyberSecurity = await checkCyberSecurity(userInput);
     if (!isCyberSecurity) {
-        return 'Please ask questions related to cybersecurity only.';
+        return 'dengithe shape out aithav';
     }
 
     // Proceed with normal flow
